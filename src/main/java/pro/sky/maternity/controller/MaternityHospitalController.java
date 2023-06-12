@@ -65,7 +65,7 @@ public class MaternityHospitalController {
                     )
             },
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Роддом пользователь",
+                    description = "Создаваемый роддом",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             array = @ArraySchema(schema = @Schema(implementation = MaternityHospitalDto.class))
@@ -102,7 +102,7 @@ public class MaternityHospitalController {
                             array = @ArraySchema(schema = @Schema(implementation = MaternityHospitalDto.class))
                     )
             ),
-            tags = "MaternityHospiyal"
+            tags = "MaternityHospital"
     )
     @PutMapping ("/{id}")
     public MaternityHospitalDto editMaternityHospital (@PathVariable long id, @RequestBody @Valid MaternityHospitalDto maternityHospitalDto){

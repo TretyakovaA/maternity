@@ -5,6 +5,9 @@ import pro.sky.maternity.dto.MaternityHospitalDto;
 import pro.sky.maternity.model.MaternityHospital;
 
 import javax.swing.text.html.parser.Entity;
+import java.util.ArrayList;
+import java.util.List;
+
 @Component
 public class MaternityHospitalDtoMapper {
     public MaternityHospitalDto toDto (MaternityHospital maternityHospital){
@@ -25,5 +28,13 @@ public class MaternityHospitalDtoMapper {
         maternityHospital.setNumber(maternityHospitalDto.getNumber());
         maternityHospital.setUsers(maternityHospitalDto.getUsers());
         return maternityHospital;
+    }
+
+    public List<MaternityHospitalDto> toDtos(List<MaternityHospital> all) {
+        List <MaternityHospitalDto> temp = new ArrayList<>();
+        for (int i=0; i<all.size(); i++){
+            temp.add(toDto(all.get(i)));
+        }
+        return temp;
     }
 }

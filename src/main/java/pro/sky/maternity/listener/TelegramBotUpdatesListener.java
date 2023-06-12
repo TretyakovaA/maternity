@@ -7,15 +7,14 @@ import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import pro.sky.maternity.dto.MaternityHospitalDto;
+import pro.sky.maternity.mapper.MaternityHospitalDtoMapper;
+import pro.sky.maternity.repository.MaternityHospitalRepository;
 //import pro.sky.telegrambot.model.NotificationTasks;
 //import pro.sky.telegrambot.repository.NotificationTasksRepository;
 
 import javax.annotation.PostConstruct;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -28,9 +27,13 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private Pattern pattern = Pattern.compile("([0-9\\.\\:\\s]{16})(\\s)([\\W+]+)");
     private final TelegramBot telegramBot;
 
+    private final MaternityHospitalRepository maternityHospitalRepository;
+    private final MaternityHospitalDtoMapper maternityHospitalDtoMapper;
 
-    public TelegramBotUpdatesListener(TelegramBot telegramBot) {
+    public TelegramBotUpdatesListener(TelegramBot telegramBot, MaternityHospitalRepository maternityHospitalRepository, MaternityHospitalDtoMapper maternityHospitalDtoMapper) {
         this.telegramBot = telegramBot;
+        this.maternityHospitalRepository = maternityHospitalRepository;
+        this.maternityHospitalDtoMapper = maternityHospitalDtoMapper;
     }
 
     @PostConstruct
@@ -45,7 +48,12 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             // Process your updates here
             long chatId = update.message().chat().id();
             if (update.message().text().equals("/start")) {
-                SendResponse response = telegramBot.execute(new SendMessage(chatId, "Приветствую! Пожалуйста, введите сообщение-напоминалку в формате: дд.мм.гггг чч:мм текст напоминалки"));
+                String message = "Добро пожаловать! Какой роддом Вас интересует? /n";
+                List<MaternityHospitalDto> maternities = maternityHospitalDtoMapper.toDtos(maternityHospitalRepository.findAll());
+                for (int i = 0; i < maternities.size(); i++) {
+message = message + maternities.get(i).getNumber() +  "- роддом №" + maternities.get(i).getNumber()+" /n";
+                }
+                SendResponse response = telegramBot.execute(new SendMessage(chatId, message));
             } else {
                 Matcher matcher = pattern.matcher(update.message().text());
                 if (matcher.matches()) {
