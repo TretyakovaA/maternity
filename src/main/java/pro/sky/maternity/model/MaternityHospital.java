@@ -21,8 +21,8 @@ public class MaternityHospital {
     /**
      * номер роддома
      */
-    @Column(name = "number")
-    private long number;
+    @Column(name = "name")
+    private String name;
 
     /**
      * адрес роддома
@@ -44,8 +44,8 @@ public class MaternityHospital {
     public MaternityHospital() {
     }
 
-    public MaternityHospital(long number, String address, String locationMap, List<User> users) {
-        this.number = number;
+    public MaternityHospital(String name, String address, String locationMap, List<User> users) {
+        this.name = name;
         this.address = address;
         this.locationMap = locationMap;
         this.users = users;
@@ -59,12 +59,12 @@ public class MaternityHospital {
         this.id = id;
     }
 
-    public long getNumber() {
-        return number;
+    public String getName() {
+        return name;
     }
 
-    public void setNumber(long number) {
-        this.number = number;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getAddress() {

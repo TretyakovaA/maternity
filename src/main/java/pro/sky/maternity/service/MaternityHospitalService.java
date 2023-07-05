@@ -35,7 +35,7 @@ public class MaternityHospitalService {
      */
     public MaternityHospitalDto addMaternityHospital(MaternityHospitalDto maternityHospitalDto) {
         MaternityHospital maternityHospital = maternityHospitalDtoMapper.toEntity((maternityHospitalDto));
-        logger.info("Роддом добавлен: " + maternityHospital.getNumber());
+        logger.info("Роддом добавлен: " + maternityHospital.getName());
         return maternityHospitalDtoMapper.toDto(maternityHospitalRepository.save(maternityHospital));
     }
 
@@ -70,7 +70,7 @@ public class MaternityHospitalService {
     public MaternityHospitalDto editMaternityHospital(long id, MaternityHospitalDto maternityHospitalDto) {
         MaternityHospital oldMaternityHospital = maternityHospitalRepository.findById(id).orElseThrow(()
                 -> new MaternityHospitalNotFoundException(id));
-        oldMaternityHospital.setNumber(maternityHospitalDto.getNumber());
+        oldMaternityHospital.setName(maternityHospitalDto.getName());
         oldMaternityHospital.setAddress(maternityHospitalDto.getAddress());
         oldMaternityHospital.setLocationMap(maternityHospitalDto.getLocationMap());
         logger.info("Роддом с id "+id +" изменен");

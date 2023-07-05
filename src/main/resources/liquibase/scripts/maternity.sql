@@ -37,7 +37,7 @@ create table maternities
         primary key,
     address      varchar(255),
     location_map varchar(255),
-    number       bigint
+    name         varchar(255)
 );
 
 alter table maternities

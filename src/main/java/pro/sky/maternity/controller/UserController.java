@@ -70,7 +70,8 @@ public class UserController {
                     description = "Cоздаваемый пользователь",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            array = @ArraySchema(schema = @Schema(implementation = UserDto.class))
+                            //array = @ArraySchema(schema = @Schema(implementation = UserDto.class))
+                            schema = @Schema(implementation = UserDto.class)
                     )
             ),
             tags = "Users"
@@ -101,7 +102,8 @@ public class UserController {
                     description = "Редактируемая информация",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            array = @ArraySchema(schema = @Schema(implementation = UserDto.class))
+                            //array = @ArraySchema(schema = @Schema(implementation = UserDto.class))
+                            schema = @Schema(implementation = UserDto.class)
                     )
             ),
             tags = "Users"

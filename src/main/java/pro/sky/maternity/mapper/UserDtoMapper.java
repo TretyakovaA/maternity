@@ -3,6 +3,9 @@ package pro.sky.maternity.mapper;
 import org.springframework.stereotype.Component;
 import pro.sky.maternity.dto.UserDto;
 import pro.sky.maternity.model.User;
+
+import java.util.ArrayList;
+import java.util.List;
 @Component
 public class UserDtoMapper {
 
@@ -26,5 +29,21 @@ public class UserDtoMapper {
         user.setMaternityHospital(userDto.getMaternityHospital());
         user.setReports(userDto.getReports());
         return user;
+    }
+
+    public List<UserDto> toDtos (List<User> users){
+        List<UserDto> temp = new ArrayList<>();
+        for (User u: users){
+            temp.add(toDto (u));
+        }
+        return temp;
+    }
+
+    public List<User> toEntities (List<UserDto> users){
+        List<User> temp = new ArrayList<>();
+        for (UserDto u: users){
+            temp.add(toEntity (u));
+        }
+        return temp;
     }
 }

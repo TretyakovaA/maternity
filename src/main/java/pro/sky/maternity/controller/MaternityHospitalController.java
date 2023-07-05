@@ -68,7 +68,8 @@ public class MaternityHospitalController {
                     description = "Создаваемый роддом",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            array = @ArraySchema(schema = @Schema(implementation = MaternityHospitalDto.class))
+                            //array = @ArraySchema(schema = @Schema(implementation = MaternityHospitalDto.class))
+                            schema = @Schema(implementation = MaternityHospitalDto.class)
                     )
             ),
             tags = "MaternityHospital"
@@ -99,7 +100,8 @@ public class MaternityHospitalController {
                     description = "Роддом информация",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            array = @ArraySchema(schema = @Schema(implementation = MaternityHospitalDto.class))
+                           // array = @ArraySchema(schema = @Schema(implementation = MaternityHospitalDto.class))
+                            schema = @Schema(implementation = MaternityHospitalDto.class)
                     )
             ),
             tags = "MaternityHospital"

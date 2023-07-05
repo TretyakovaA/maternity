@@ -67,7 +67,8 @@ public class ReportsController {
                     description = "Cоздаваемый отчет",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            array = @ArraySchema(schema = @Schema(implementation = ReportsDto.class))
+                            //array = @ArraySchema(schema = @Schema(implementation = ReportsDto.class))
+                            schema = @Schema(implementation = ReportsDto.class)
                     )
             ),
             tags = "Reports"
@@ -98,7 +99,8 @@ public class ReportsController {
                     description = "Редактируемая информация",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            array = @ArraySchema(schema = @Schema(implementation = ReportsDto.class))
+                            //array = @ArraySchema(schema = @Schema(implementation = ReportsDto.class))
+                            schema = @Schema(implementation = ReportsDto.class)
                     )
             ),
             tags = "Reports"

@@ -14,7 +14,7 @@ public class MaternityHospitalDto {
 
     private long id;
 
-    private long number;
+    private String name;
 
     private String address;
 
@@ -23,9 +23,9 @@ public class MaternityHospitalDto {
 
     private List<User> users;
 
-    public MaternityHospitalDto(long id, long number, String address, String locationMap, List<User> users) {
+    public MaternityHospitalDto(long id, String name, String address, String locationMap, List<User> users) {
         this.id = id;
-        this.number = number;
+        this.name = name;
         this.address = address;
         this.locationMap = locationMap;
         this.users = users;
@@ -43,12 +43,12 @@ public class MaternityHospitalDto {
         this.id = id;
     }
 
-    public long getNumber() {
-        return number;
+    public String getName() {
+        return name;
     }
 
-    public void setNumber(long number) {
-        this.number = number;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getAddress() {
