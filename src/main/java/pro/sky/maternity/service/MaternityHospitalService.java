@@ -49,8 +49,7 @@ public class MaternityHospitalService {
     public MaternityHospitalDto findMaternityHospital(long id) {
         MaternityHospital findMaternityHospital = maternityHospitalRepository.findById(id).orElseThrow(() -> {
             logger.info("Роддом с id " + id + " не найден");
-            new MaternityHospitalNotFoundException(id);
-            return null;
+            throw new MaternityHospitalNotFoundException(id);
         });
 
         logger.info("Роддом с id " + id + " найден");
@@ -69,7 +68,7 @@ public class MaternityHospitalService {
      */
     public MaternityHospitalDto editMaternityHospital(long id, MaternityHospitalDto maternityHospitalDto) {
         MaternityHospital oldMaternityHospital = maternityHospitalRepository.findById(id).orElseThrow(()
-                -> new MaternityHospitalNotFoundException(id));
+                -> {throw  new MaternityHospitalNotFoundException(id);});
         oldMaternityHospital.setName(maternityHospitalDto.getName());
         oldMaternityHospital.setAddress(maternityHospitalDto.getAddress());
         oldMaternityHospital.setLocationMap(maternityHospitalDto.getLocationMap());
@@ -86,7 +85,7 @@ public class MaternityHospitalService {
      */
     public MaternityHospitalDto deleteMaternityHospital (long id){
         MaternityHospital maternityHospital = maternityHospitalRepository.findById(id).orElseThrow(()
-        -> new MaternityHospitalNotFoundException(id));
+                -> {throw  new MaternityHospitalNotFoundException(id);});
         maternityHospitalRepository.delete(maternityHospital);
         logger.info("Роддом с id "+id+" удален");
         return maternityHospitalDtoMapper.toDto(maternityHospital);

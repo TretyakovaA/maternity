@@ -48,8 +48,7 @@ public class ReportsService {
     public ReportsDto findReports(long id) {
         Reports findReports = reportsRepository.findById(id).orElseThrow(() -> {
             logger.info("Отчет с id " + id + " не найден");
-            new ReportsNotFoundException(id);
-            return null;
+            throw new ReportsNotFoundException(id);
         });
 
         logger.info("Отчет с id " + id + " найден");
@@ -68,7 +67,7 @@ public class ReportsService {
      */
     public ReportsDto editReports(long id, ReportsDto reportsDto) {
         Reports oldReports = reportsRepository.findById(id).orElseThrow(()
-                -> new ReportsNotFoundException(id));
+                -> { throw new ReportsNotFoundException(id);});
         oldReports.setUser(reportsDto.getUser());
        oldReports.setText(reportsDto.getText());
         oldReports.setDate(reportsDto.getDate());
@@ -87,7 +86,7 @@ public class ReportsService {
      */
     public ReportsDto deleteReports (long id){
         Reports reports = reportsRepository.findById(id).orElseThrow(()
-                -> new ReportsNotFoundException(id));
+                -> { throw new ReportsNotFoundException(id);});
         reportsRepository.delete(reports);
         logger.info("Отчет с id "+id+" удален");
         return reportsDtoMapper.toDto(reports);

@@ -46,8 +46,7 @@ public class UserService {
     public UserDto findUser(long id) {
         User findUser = userRepository.findById(id).orElseThrow(() -> {
             logger.info("Пользователь с id " + id + " не найден");
-            new UserNotFoundException(id);
-            return null;
+            throw new UserNotFoundException(id);
         });
 
         logger.info("Пользователь с id " + id + " найден");
@@ -66,7 +65,7 @@ public class UserService {
      */
     public UserDto editUser(long id, UserDto userDto) {
         User oldUser = userRepository.findById(id).orElseThrow(()
-                -> new UserNotFoundException(id));
+                -> {throw new UserNotFoundException(id);});
         oldUser.setName(userDto.getName());
         oldUser.setReports(userDto.getReports());
         oldUser.setMaternityHospital(userDto.getMaternityHospital());
@@ -85,7 +84,7 @@ public class UserService {
      */
     public UserDto deleteUser (long id){
         User user = userRepository.findById(id).orElseThrow(()
-                -> new UserNotFoundException(id));
+                -> {throw new UserNotFoundException(id);});
         userRepository.delete(user);
         logger.info("Пользователь с id "+id+" удален");
         return userDtoMapper.toDto(user);

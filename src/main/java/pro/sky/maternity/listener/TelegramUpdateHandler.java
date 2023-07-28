@@ -127,10 +127,16 @@ public class TelegramUpdateHandler {
             switch (update.message().text()) {
                 //public final String MENU1_BUTTON1 = "Узнать информацию о роддоме";
                 case MENU0_BUTTON1:
-                    telegramBot.execute(new SendMessage(chatId, "(Узнать информацию о роддоме: "+ maternityName));
+                    maternityName = MENU0_BUTTON1;
+                    telegramBot.execute(new SendMessage(chatId, "Узнать информацию о роддоме: "+ maternityName));
+                    menuNumber = 1;
+                    showMenu(chatId);
                     break;
                 case MENU0_BUTTON2:
-                    telegramBot.execute(new SendMessage(chatId, "(Узнать информацию о роддоме)" + maternityName));
+                    maternityName = MENU0_BUTTON2;
+                    telegramBot.execute(new SendMessage(chatId, "Узнать информацию о роддоме: " + maternityName));
+                    menuNumber = 1;
+                    showMenu(chatId);
                     break;
             }
         } else if (menuNumber == 1) {
@@ -142,15 +148,20 @@ public class TelegramUpdateHandler {
                 //public final String MENU1_BUTTON1 = "Узнать информацию о роддоме";
                 case MENU1_BUTTON1:
                     telegramBot.execute(new SendMessage(chatId, "(Узнать информацию о роддоме), Открыть меню 2"));
+                    menuNumber = 2;
+                    showMenu(chatId);
                     break;
                 //"Что нужно взять с собой в роддом";
                 case MENU1_BUTTON2:
                     telegramBot.execute(new SendMessage(chatId, "(Что нужно взять с собой в роддом), Открыть меню 3"));
+                    menuNumber = 3;
+                    showMenu(chatId);
                     break;
                 //"Послеродовое сопровождение"
                 case MENU1_BUTTON3:
                     telegramBot.execute(new SendMessage(chatId, "(Послеродовое сопровождение), Открыть меню 3"));
-                    ;
+                    menuNumber = 3;
+                    showMenu(chatId);
                     break;
                 //"Связаться со специалистом"
                 case MENU1_BUTTON4:
@@ -160,7 +171,8 @@ public class TelegramUpdateHandler {
                 //"Вернуться в предыдущее меню";
                 case MENU1_BUTTON5:
                     telegramBot.execute(new SendMessage(chatId, "(Вернуться в предыдущее меню), Открыть меню 0"));
-                    ;
+                    menuNumber = 0;
+                    showMenu(chatId);
                     break;
                 default:
                     telegramBot.execute(new SendMessage(chatId, "Связать со специалистом"));
@@ -187,6 +199,8 @@ public class TelegramUpdateHandler {
                 //"Что взять с собой в роддом";
                 case MENU2_BUTTON5:
                     telegramBot.execute(new SendMessage(chatId, "(Что взять с собой в роддом), открыть меню 3"));
+                    menuNumber = 3;
+                    showMenu(chatId);
                     break;
                 //"Связаться со специалистом"
                 case MENU2_BUTTON6:
@@ -195,6 +209,8 @@ public class TelegramUpdateHandler {
                 //"Вернуться в предыдущее меню";
                 case MENU2_BUTTON7:
                     telegramBot.execute(new SendMessage(chatId, "(Вернуться в предыдущее меню), Открыть меню 1"));
+                    menuNumber = 1;
+                    showMenu(chatId);
                     break;
                 default:
                     telegramBot.execute(new SendMessage(chatId, "Связать со специалистом"));
@@ -242,6 +258,8 @@ public class TelegramUpdateHandler {
                 //"Вернуться в предыдущее меню";
                 case MENU3_BUTTON10:
                     telegramBot.execute(new SendMessage(chatId, "(Вернуться в предыдущее меню), Открыть меню 2"));
+                    menuNumber = 2;
+                    showMenu(chatId);
                     break;
                 default:
                     telegramBot.execute(new SendMessage(chatId, "Связать со специалистом"));

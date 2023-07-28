@@ -55,12 +55,17 @@ public class User {
     public User() {
     }
 
-    public User(long chatId, String name, LocalDateTime childBirthday, MaternityHospital maternityHospital, List<Reports> reports) {
+    public User(long chatId, String name, LocalDateTime childBirthday, MaternityHospital maternityHospital) {
         this.chatId = chatId;
         this.name = name;
         this.childBirthday = childBirthday;
         this.maternityHospital = maternityHospital;
-        this.reports = reports;
+    }
+
+    public User(long id, long chatId, String name) {
+        this.id = id;
+        this.chatId = chatId;
+        this.name = name;
     }
 
     public long getId() {

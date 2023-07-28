@@ -44,11 +44,16 @@ public class MaternityHospital {
     public MaternityHospital() {
     }
 
-    public MaternityHospital(String name, String address, String locationMap, List<User> users) {
+    public MaternityHospital(String name, String address, String locationMap) {
         this.name = name;
         this.address = address;
         this.locationMap = locationMap;
-        this.users = users;
+    }
+    public MaternityHospital(long id, String name, String address, String locationMap) {
+        this.id = id;
+        this.name = name;
+        this.address = address;
+        this.locationMap = locationMap;
     }
 
     public long getId() {

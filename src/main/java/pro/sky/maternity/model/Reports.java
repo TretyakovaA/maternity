@@ -57,6 +57,14 @@ public class Reports {
         this.photo = photo;
         this.user = user;
     }
+    public Reports(long id, long chatId, LocalDateTime date, String text, String photo, User user) {
+        this.id = id;
+        this.chatId = chatId;
+        this.date = date;
+        this.text = text;
+        this.photo = photo;
+        this.user = user;
+    }
 
     public long getId() {
         return id;
