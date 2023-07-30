@@ -2,20 +2,20 @@ package pro.sky.maternity.listener;
 
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.model.Update;
-import com.pengrad.telegrambot.model.request.Keyboard;
 import com.pengrad.telegrambot.model.request.ReplyKeyboardMarkup;
 import com.pengrad.telegrambot.request.SendMessage;
-import com.pengrad.telegrambot.response.SendResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.EncodedResource;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.stereotype.Service;
-import pro.sky.maternity.dto.MaternityHospitalDto;
 import pro.sky.maternity.mapper.MaternityHospitalDtoMapper;
 import pro.sky.maternity.repository.MaternityHospitalRepository;
 
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 
 @Service
 public class TelegramUpdateHandler {
@@ -25,6 +25,8 @@ public class TelegramUpdateHandler {
     private final TelegramBot telegramBot;
 
     private int menuNumber = 0;
+
+    private Properties properties = null;
 
     //меню0
     private String maternityName;
@@ -44,7 +46,6 @@ public class TelegramUpdateHandler {
     public final String MENU2_BUTTON1 = "Рассказать о роддоме подробнее";
     public final String MENU2_BUTTON2 = "График работы роддома";
     public final String MENU2_BUTTON3 = "Адрес, схема проезда ";
-    public final String MENU2_BUTTON4 = "Правила посещения роженицы";
     public final String MENU2_BUTTON5 = "Что взять с собой в роддом";
     public final String MENU2_BUTTON6 = "Связаться со специалистом";
     public final String MENU2_BUTTON7 = "Вернуться в предыдущее меню";
@@ -88,7 +89,7 @@ public class TelegramUpdateHandler {
             case 2:
                 telegramBot.execute(new SendMessage(chatId, "Информация о роддоме: " + maternityName)
                         .replyMarkup(new ReplyKeyboardMarkup(new String[]{MENU1_BUTTON1},
-                                new String[]{MENU2_BUTTON2}, new String[]{MENU2_BUTTON3}, new String[]{MENU2_BUTTON4}
+                                new String[]{MENU2_BUTTON2}, new String[]{MENU2_BUTTON3}
                                 , new String[]{MENU2_BUTTON5}, new String[]{MENU2_BUTTON6}, new String[]{MENU2_BUTTON7})));
                 break;
             case 3:
@@ -109,7 +110,7 @@ public class TelegramUpdateHandler {
      *
      * @param update Update
      */
-    public void processUpdate(Update update) {
+    public void processUpdate(Update update) throws IOException {
         logger.info("Processing update: {}", update);
         // Process your updates here
         long chatId = update.message().chat().id();
@@ -125,16 +126,22 @@ public class TelegramUpdateHandler {
 
         } else if (menuNumber==0) {
             switch (update.message().text()) {
-                //public final String MENU1_BUTTON1 = "Узнать информацию о роддоме";
+                // выбираем файлы свойств в завивисмости от имени роддома
+                //Роддом 40
                 case MENU0_BUTTON1:
                     maternityName = MENU0_BUTTON1;
                     telegramBot.execute(new SendMessage(chatId, "Узнать информацию о роддоме: "+ maternityName));
+                    properties = PropertiesLoaderUtils.loadProperties(new EncodedResource
+                            (new ClassPathResource("info.40.properties"), StandardCharsets.UTF_8));
                     menuNumber = 1;
                     showMenu(chatId);
                     break;
+                // роддом МОНИИАГ
                 case MENU0_BUTTON2:
                     maternityName = MENU0_BUTTON2;
                     telegramBot.execute(new SendMessage(chatId, "Узнать информацию о роддоме: " + maternityName));
+                    properties = PropertiesLoaderUtils.loadProperties(new EncodedResource
+                            (new ClassPathResource("info.moniiag.properties"), StandardCharsets.UTF_8));
                     menuNumber = 1;
                     showMenu(chatId);
                     break;
@@ -192,10 +199,6 @@ public class TelegramUpdateHandler {
                 case MENU2_BUTTON3:
                     telegramBot.execute(new SendMessage(chatId, "Адрес, схема проезда "));
                     break;
-                //"Правила посещения роженицы"
-                case MENU2_BUTTON4:
-                    telegramBot.execute(new SendMessage(chatId, "Правила посещения роженицы"));
-                    break;
                 //"Что взять с собой в роддом";
                 case MENU2_BUTTON5:
                     telegramBot.execute(new SendMessage(chatId, "(Что взять с собой в роддом), открыть меню 3"));
@@ -217,35 +220,34 @@ public class TelegramUpdateHandler {
             }
 
         } else if (menuNumber == 3) {
-
             switch (update.message().text()) {
                 //"Какие документы взять?";
                 case MENU3_BUTTON1:
-                    telegramBot.execute(new SendMessage(chatId, "Какие документы взять?"));
+                    telegramBot.execute(new SendMessage(chatId, properties.getProperty("documents.info")));
                     break;
                 //"Первые дни в роддоме";
                 case MENU3_BUTTON2:
-                    telegramBot.execute(new SendMessage(chatId, "Пребывание в роддоме"));
+                    telegramBot.execute(new SendMessage(chatId, properties.getProperty("staying.maternity.info")));
                     break;
                 //"Забираем малыша домой. Рекомендации"
                 case MENU3_BUTTON3:
-                    telegramBot.execute(new SendMessage(chatId, "Забираем малыша домой. Рекомендации"));
+                    telegramBot.execute(new SendMessage(chatId, properties.getProperty("comming.home.info")));
                     break;
                 //"Список рекомендаций по обустройству дома для малыша"
                 case MENU3_BUTTON4:
-                    telegramBot.execute(new SendMessage(chatId, "Список рекомендаций по обустройству дома для малыша"));
+                    telegramBot.execute(new SendMessage(chatId, properties.getProperty("advices.baby.home.info")));
                     break;
                 //"Список рекомендаций по обустройству дома для мамы"
                 case MENU3_BUTTON5:
-                    telegramBot.execute(new SendMessage(chatId, "Список рекомендаций по обустройству дома для мамы"));
+                    telegramBot.execute(new SendMessage(chatId, properties.getProperty("advices.mother.home.info")));
                     break;
                 //"Советы неонатолога по уходу за ребенком в первые недели жизни"
                 case MENU3_BUTTON6:
-                    telegramBot.execute(new SendMessage(chatId, "Советы неонатолога по уходу за ребенком в первые недели жизни"));
+                    telegramBot.execute(new SendMessage(chatId, properties.getProperty("neonatologist.advices.info")));
                     break;
                 //"Контактные данные рекомендованных педиатров"
                 case MENU3_BUTTON7:
-                    telegramBot.execute(new SendMessage(chatId, "Контактные данные рекомендованных педиатров"));
+                    telegramBot.execute(new SendMessage(chatId, properties.getProperty("pediatrician.advices.info")));
                     break;
                 //"Записаться на послеродовое сопровождение"
                 case MENU3_BUTTON8:
