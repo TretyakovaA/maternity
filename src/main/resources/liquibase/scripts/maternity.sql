@@ -9,7 +9,7 @@ create table users
     chat_id               bigint,
     child_birthday        timestamp,
     name                  varchar(255),
-   maternity_id bigint not null
+   maternity_hospital_id bigint not null
 );
 
 alter table users
@@ -44,7 +44,7 @@ alter table maternities
     owner to student;
 
 ALTER TABLE users
-    ADD CONSTRAINT users_maternity_id_fk FOREIGN KEY (maternity_id)
+    ADD CONSTRAINT users_maternity_hospital_id_fk FOREIGN KEY (maternity_hospital_id)
         REFERENCES maternities (id)
         ON DELETE SET NULL
         ON UPDATE NO ACTION
