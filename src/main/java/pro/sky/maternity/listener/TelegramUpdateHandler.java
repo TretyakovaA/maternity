@@ -11,20 +11,26 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.EncodedResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import pro.sky.maternity.dto.UserDto;
 import pro.sky.maternity.exception.MaternityHospitalNotFoundException;
-import pro.sky.maternity.exception.UserNotFoundException;
 import pro.sky.maternity.mapper.MaternityHospitalDtoMapper;
 import pro.sky.maternity.mapper.UserDtoMapper;
+import pro.sky.maternity.model.DailyMail;
 import pro.sky.maternity.model.MaternityHospital;
 import pro.sky.maternity.model.User;
+import pro.sky.maternity.repository.DailyMailRepository;
 import pro.sky.maternity.repository.MaternityHospitalRepository;
 import pro.sky.maternity.repository.UserRepository;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -42,6 +48,9 @@ public class TelegramUpdateHandler {
 
     @Value("${specialist.id}")
     private int specialistId;
+
+    @Value("${max.days.count}")
+    private int maxDaysCount;
 
     //меню0
     private String maternityName;
@@ -86,14 +95,16 @@ public class TelegramUpdateHandler {
     private final MaternityHospitalDtoMapper maternityHospitalDtoMapper;
 
     private final UserRepository userRepository;
+    private final DailyMailRepository dailyMailRepository;
     private final UserDtoMapper userDtoMapper;
     private Pattern pattern = Pattern.compile("([0-9\\.]{10})");
 
-    public TelegramUpdateHandler(TelegramBot telegramBot, MaternityHospitalRepository maternityHospitalRepository, MaternityHospitalDtoMapper maternityHospitalDtoMapper, UserRepository userRepository, UserDtoMapper userDtoMapper) {
+    public TelegramUpdateHandler(TelegramBot telegramBot, MaternityHospitalRepository maternityHospitalRepository, MaternityHospitalDtoMapper maternityHospitalDtoMapper, UserRepository userRepository, DailyMailRepository dailyMailRepository, UserDtoMapper userDtoMapper) {
         this.telegramBot = telegramBot;
         this.maternityHospitalRepository = maternityHospitalRepository;
         this.maternityHospitalDtoMapper = maternityHospitalDtoMapper;
         this.userRepository = userRepository;
+        this.dailyMailRepository = dailyMailRepository;
         this.userDtoMapper = userDtoMapper;
     }
 
@@ -131,7 +142,7 @@ public class TelegramUpdateHandler {
 
         if (update.message().chat().username() != null) {
             userRepository.save(new User(update.message().chat().id(), update.message().chat().username(),
-                    LocalDateTime.parse(update.message().text()+" 00:00", DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")), userMaternity));
+                    LocalDateTime.parse(update.message().text() + " 00:00", DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")), userMaternity));
         } else {
             telegramBot.execute(new SendMessage(update.message().chat().id(),
                     "Уважаемый пациент " +
@@ -349,6 +360,21 @@ public class TelegramUpdateHandler {
                     break;
                 //"Записаться на послеродовое сопровождение"
                 case MENU3_BUTTON8:
+                    List<User> users = userRepository.findAll();
+                    Set<Long> chatIds = new HashSet<>();
+                    if (users != null && users.size() != 0) {
+                        for (User u : users) {
+                            chatIds.add(u.getChatId());
+                        }
+                        if (chatIds.contains(update.message().chat().id())) {
+                            telegramBot.execute(new SendMessage(update.message().chat().id(),
+                                    "Уважаемый пациент " +
+                                            ", Вы уже записаны на сопровождение! "));
+                            menuNumber = 3;
+                            showMenu(chatId);
+                            break;
+                        }
+                    }
                     // telegramBot.execute(new SendMessage(chatId, "Записаться на послеродовое сопровождение"));
                     menuNumber = 4;
                     showMenu(chatId);
@@ -378,20 +404,6 @@ public class TelegramUpdateHandler {
                 //Записаться
                 //Указать дату рождения малыша
                 case MENU4_BUTTON1:
-                    List<User> users = userRepository.findAll();
-                    Set<Long> chatIds = new HashSet<>();
-                    for (User u: users){
-                        chatIds.add(u.getChatId());
-                    }
-                    if (chatIds.contains(update.message().chat().id())){
-                        telegramBot.execute(new SendMessage(update.message().chat().id(),
-                                "Уважаемый пациент " +
-                                        ", Вы уже записаны на сопровождение! "));
-                        menuNumber = 3;
-                        showMenu(chatId);
-                        break;
-                    }
-
                     SendResponse response = telegramBot.execute(new SendMessage(chatId,
                             "Пожалуйста, введите дату и время рождения малыша в формате: дд.мм.гггг"));
                     menuNumber = 4;
@@ -407,12 +419,12 @@ public class TelegramUpdateHandler {
                     if (matcher.matches()) {
                         String date = matcher.group(1);
                         registerToMaternitySupport(update);
-                         telegramBot.execute(new SendMessage(chatId, "Спасибо, вы записаны на сопровождение"));
+                        telegramBot.execute(new SendMessage(chatId, "Спасибо, вы записаны на сопровождение"));
                         telegramBot.execute(new SendMessage(chatId, "Первое письмо отдела заботы вы получите уже завтра!"));
                         menuNumber = 3;
                         showMenu(chatId);
                     } else {
-                         telegramBot.execute(new SendMessage(chatId, " Ошибка! Введите сообщение в формате: дд.мм.гггг"));
+                        telegramBot.execute(new SendMessage(chatId, " Ошибка! Введите сообщение в формате: дд.мм.гггг"));
                         menuNumber = 4;
                         showMenu(chatId);
                     }
@@ -439,4 +451,22 @@ public class TelegramUpdateHandler {
         return message;
     }
 
+    //тестовый раз в минуту @Scheduled(cron = "0 0/1 * * * *")
+    //ежедневно в 12 дня
+    @Scheduled(cron = "0 0 12 * * *")
+    public void testDailyMail() {
+        List<User> users = userRepository.findAll();
+        if (users == null || users.size() == 0) {
+            return;
+        }
+
+        for (User user : users) {
+            if (user.getChildBirthday().isAfter(
+                    LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES).minusDays(maxDaysCount))) {
+                long dayNumber = Duration.between(LocalDateTime.now(), user.getChildBirthday()).toDays()+1;
+                DailyMail mail = dailyMailRepository.findById(dayNumber).orElseThrow();
+                telegramBot.execute(new SendMessage(user.getChatId(),mail.getInfo()));
+            }
+        }
+    }
 }
