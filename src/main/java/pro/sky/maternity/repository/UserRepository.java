@@ -6,4 +6,5 @@ import pro.sky.maternity.model.User;
 import java.util.List;
 
 public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByName (String name);
 }

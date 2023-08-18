@@ -1,9 +1,12 @@
 package pro.sky.maternity.listener;
 
 import com.pengrad.telegrambot.TelegramBot;
+import com.pengrad.telegrambot.model.PhotoSize;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.model.request.ReplyKeyboardMarkup;
+import com.pengrad.telegrambot.request.GetFile;
 import com.pengrad.telegrambot.request.SendMessage;
+import com.pengrad.telegrambot.response.GetFileResponse;
 import com.pengrad.telegrambot.response.SendResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,22 +16,23 @@ import org.springframework.core.io.support.EncodedResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import pro.sky.maternity.dto.UserDto;
 import pro.sky.maternity.exception.MaternityHospitalNotFoundException;
 import pro.sky.maternity.mapper.MaternityHospitalDtoMapper;
 import pro.sky.maternity.mapper.UserDtoMapper;
 import pro.sky.maternity.model.DailyMail;
 import pro.sky.maternity.model.MaternityHospital;
+import pro.sky.maternity.model.Reports;
 import pro.sky.maternity.model.User;
 import pro.sky.maternity.repository.DailyMailRepository;
 import pro.sky.maternity.repository.MaternityHospitalRepository;
+import pro.sky.maternity.repository.ReportsRepository;
 import pro.sky.maternity.repository.UserRepository;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -91,20 +95,27 @@ public class TelegramUpdateHandler {
     public final String MENU4_BUTTON1 = "Записаться (указать дату рождения малыша)";
     public final String MENU4_BUTTON3 = "Вернуться в предыдущее меню";
 
+    //Меню 5 (узнать о самочувствии пользователя)
+    public final String MENU5_BUTTON1 = "Сообщить о самочувствии";
+    public final String MENU5_BUTTON2 = "Отписаться от рассылки";
+
     private final MaternityHospitalRepository maternityHospitalRepository;
     private final MaternityHospitalDtoMapper maternityHospitalDtoMapper;
 
     private final UserRepository userRepository;
     private final DailyMailRepository dailyMailRepository;
+
+    private final ReportsRepository reportsRepository;
     private final UserDtoMapper userDtoMapper;
     private Pattern pattern = Pattern.compile("([0-9\\.]{10})");
 
-    public TelegramUpdateHandler(TelegramBot telegramBot, MaternityHospitalRepository maternityHospitalRepository, MaternityHospitalDtoMapper maternityHospitalDtoMapper, UserRepository userRepository, DailyMailRepository dailyMailRepository, UserDtoMapper userDtoMapper) {
+    public TelegramUpdateHandler(TelegramBot telegramBot, MaternityHospitalRepository maternityHospitalRepository, MaternityHospitalDtoMapper maternityHospitalDtoMapper, UserRepository userRepository, DailyMailRepository dailyMailRepository, ReportsRepository reportsRepository, UserDtoMapper userDtoMapper) {
         this.telegramBot = telegramBot;
         this.maternityHospitalRepository = maternityHospitalRepository;
         this.maternityHospitalDtoMapper = maternityHospitalDtoMapper;
         this.userRepository = userRepository;
         this.dailyMailRepository = dailyMailRepository;
+        this.reportsRepository = reportsRepository;
         this.userDtoMapper = userDtoMapper;
     }
 
@@ -150,6 +161,77 @@ public class TelegramUpdateHandler {
         }
     }
 
+    public void unRegisterToMaternitySupport(Update update) {
+        if (update.message().chat().username() != null) {
+            List<User> usersTodelete = userRepository.findByName(update.message().chat().username());
+            if (usersTodelete != null && usersTodelete.size()>0) {
+                userRepository.deleteById(usersTodelete.get(0).getId());
+                telegramBot.execute(new SendMessage(update.message().chat().id(),
+                        "Уважаемый пациент " +
+                                "! Вы удалены из рассылки "));
+            } else {
+                telegramBot.execute(new SendMessage(update.message().chat().id(),
+                        "Уважаемый пациент " +
+                                "! Ваш username не найден "));
+            }
+        } else {
+            telegramBot.execute(new SendMessage(update.message().chat().id(),
+                    "Уважаемый пациент " +
+                            "! Ваш username не найден "));
+        }
+        menuNumber = -1;
+    }
+
+    public void sendInfoAboutHealth (Update update) {
+        String pathPhoto = "";
+        if (update.message().chat().username() != null) {
+            List<User> users = userRepository.findByName(update.message().chat().username());
+            if (users != null && users.size()>0) {
+                User user = users.get(0);
+
+
+//                //получение фото
+//                //GetFile getFile = new GetFile(update.message().photo()[0].fileId());
+//                if (update.message().photo().length>0)
+//                {
+//                    PhotoSize [] photos = update.message().photo();
+//                    int count = 1;
+//                    for (PhotoSize photo : photos)
+//                    {
+//                        GetFile getFile = new GetFile(photo.fileId());
+//                        try
+//                        {
+//                           GetFileResponse file = telegramBot.execute(getFile); //tg file obj
+//                            telegramBot. .getFileContent(file, new java.io.File("photos/photo" + count + ".png"));
+//                            count++;
+//                        } catch (Exception e)
+//                        {
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                }
+
+                //long chatId, LocalDateTime date, String text, String photo, User user
+                Reports report = new Reports(update.message().chat().id(),
+                        LocalDateTime.now(), update.message().text(),null, user);
+                if (reportsRepository.save(report) != null){
+                    telegramBot.execute(new SendMessage(update.message().chat().id(),
+                            "Уважаемый пациент " +
+                                    ", ваш отчет сохранен! "));
+                }
+            } else {
+                telegramBot.execute(new SendMessage(update.message().chat().id(),
+                        "Уважаемый пациент " +
+                                "! Ваш username не найден "));
+            }
+        } else {
+            telegramBot.execute(new SendMessage(update.message().chat().id(),
+                    "Уважаемый пациент " +
+                            "! Ваш username не найден "));
+        }
+        menuNumber = -1;
+    }
+
     public void showMenu(long chatId) {
         System.out.println(chatId);
         switch (menuNumber) {
@@ -181,6 +263,10 @@ public class TelegramUpdateHandler {
             case 4:
                 telegramBot.execute(new SendMessage(chatId, "Запись на сопровождение")
                         .replyMarkup(new ReplyKeyboardMarkup(new String[]{MENU4_BUTTON1}, new String[]{MENU4_BUTTON3})));
+                break;
+            case  5:
+                telegramBot.execute(new SendMessage(chatId, "Дорогая мама, нам важно знать как вы с малышом себя чувствуете!")
+                        .replyMarkup(new ReplyKeyboardMarkup(new String[]{MENU5_BUTTON1},new String[]{MENU5_BUTTON2})));
                 break;
         }
 
@@ -434,6 +520,22 @@ public class TelegramUpdateHandler {
 
                     break;
             }
+        } else if (menuNumber == 5) {
+            //Спросить пользователя о самочувствии
+            switch (update.message().text()) {
+                //Сообщить о самочувствии
+                case MENU5_BUTTON1:
+                    telegramBot.execute(new SendMessage(chatId, "Дорогая мама, напиши, пожалуйста подробнее как вы себя чувствуете. " +
+                            "Мы рады увидеть новое фото малыша, можешь прикрепить его к сообщению!"));
+                    break;
+                    //Отписаться от рассылки
+                case MENU5_BUTTON2:
+                    unRegisterToMaternitySupport (update);
+                    break;
+                default:
+                    sendInfoAboutHealth (update);
+                    break;
+            }
         }
     }
 
@@ -451,9 +553,10 @@ public class TelegramUpdateHandler {
         return message;
     }
 
-    //тестовый раз в минуту @Scheduled(cron = "0 0/1 * * * *")
+    //тестовый раз в минуту
+    @Scheduled(cron = "0 0/1 * * * *")
     //ежедневно в 12 дня
-    @Scheduled(cron = "0 0 12 * * *")
+    //@Scheduled(cron = "0 0 12 * * *")
     public void testDailyMail() {
         List<User> users = userRepository.findAll();
         if (users == null || users.size() == 0) {
@@ -466,6 +569,8 @@ public class TelegramUpdateHandler {
                 long dayNumber = Duration.between(LocalDateTime.now(), user.getChildBirthday()).toDays()+1;
                 DailyMail mail = dailyMailRepository.findById(dayNumber).orElseThrow();
                 telegramBot.execute(new SendMessage(user.getChatId(),mail.getInfo()));
+                menuNumber = 5;
+                showMenu(user.getChatId());
             }
         }
     }
