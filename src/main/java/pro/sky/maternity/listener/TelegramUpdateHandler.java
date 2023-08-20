@@ -16,6 +16,7 @@ import org.springframework.core.io.support.EncodedResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import pro.sky.maternity.exception.MaternityHospitalNotFoundException;
 import pro.sky.maternity.mapper.MaternityHospitalDtoMapper;
 import pro.sky.maternity.mapper.UserDtoMapper;
@@ -31,6 +32,8 @@ import pro.sky.maternity.repository.UserRepository;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -55,6 +58,9 @@ public class TelegramUpdateHandler {
 
     @Value("${max.days.count}")
     private int maxDaysCount;
+
+    @Value("${max.days.count.without.reports}")
+    private int maxDaysCountWithoutReports;
 
     //меню0
     private String maternityName;
@@ -164,7 +170,7 @@ public class TelegramUpdateHandler {
     public void unRegisterToMaternitySupport(Update update) {
         if (update.message().chat().username() != null) {
             List<User> usersTodelete = userRepository.findByName(update.message().chat().username());
-            if (usersTodelete != null && usersTodelete.size()>0) {
+            if (usersTodelete != null && usersTodelete.size() > 0) {
                 userRepository.deleteById(usersTodelete.get(0).getId());
                 telegramBot.execute(new SendMessage(update.message().chat().id(),
                         "Уважаемый пациент " +
@@ -182,39 +188,69 @@ public class TelegramUpdateHandler {
         menuNumber = -1;
     }
 
-    public void sendInfoAboutHealth (Update update) {
-        String pathPhoto = "";
+    public void sendInfoAboutHealth(Update update) {
+        //проверяем не было ли в этот день уже отчета
+        User testUser = userRepository.findByName(update.message().chat().username()).get(0);
+        if (testUser == null){
+            telegramBot.execute(new SendMessage(update.message().chat().id(),
+                    "Уважаемый пациент " +
+                            "! Ваш username не найден "));
+            menuNumber = -1;
+            return;
+        }
+        List<Reports> reportsByUser = reportsRepository.findByUser(testUser);
+        if (reportsByUser != null && reportsByUser.size() > 0) {
+            for (Reports rep : reportsByUser) {
+                String localDate = LocalDateTime.now().toString().substring(0,10);
+                System.out.println("текущее время "+ localDate);
+                String repDate = rep.getDate().toString().substring(0,10);
+                System.out.println("из базы" + repDate);
+                if (localDate.equals(repDate)) {
+                    telegramBot.execute(new SendMessage(update.message().chat().id(),
+                            "Уважаемый пациент " +
+                                    ", вы уже отправляли отчет сегодня! "));
+                    menuNumber = -1;
+                    return;
+                }
+            }
+        }
+
+        String pathPhoto = null;
         if (update.message().chat().username() != null) {
             List<User> users = userRepository.findByName(update.message().chat().username());
-            if (users != null && users.size()>0) {
+            if (users != null && users.size() > 0) {
                 User user = users.get(0);
 
 
 //                //получение фото
-//                //GetFile getFile = new GetFile(update.message().photo()[0].fileId());
-//                if (update.message().photo().length>0)
-//                {
-//                    PhotoSize [] photos = update.message().photo();
-//                    int count = 1;
-//                    for (PhotoSize photo : photos)
-//                    {
-//                        GetFile getFile = new GetFile(photo.fileId());
-//                        try
-//                        {
-//                           GetFileResponse file = telegramBot.execute(getFile); //tg file obj
-//                            telegramBot. .getFileContent(file, new java.io.File("photos/photo" + count + ".png"));
-//                            count++;
-//                        } catch (Exception e)
-//                        {
-//                            e.printStackTrace();
-//                        }
-//                    }
-//                }
+                if (update.message().photo() != null) {
+                    PhotoSize photoSize = update.message().photo()[update.message().photo().length - 1];
+                    GetFileResponse getFileResponse = telegramBot.execute(new GetFile(photoSize.fileId()));
+                    if (getFileResponse.isOk()) {
+                        try {
+                            String extension = StringUtils.getFilenameExtension(getFileResponse.file().filePath());
+                            byte[] image = telegramBot.getFileContent(getFileResponse.file());
+                            pathPhoto = "photoReports//"+UUID.randomUUID()+ "." + extension;
+                            //Files.write(Paths.get(UUID.randomUUID() + "." + extension), image);
+                            Files.write(Paths.get(pathPhoto), image);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
 
+                String textOrCaption = null;
+                if (update.message().text() != null) {
+                    textOrCaption = update.message().text();
+                } else if (update.message().caption() != null) {
+                    textOrCaption = update.message().caption();
+                } else {
+                    textOrCaption = "только фото";
+                }
                 //long chatId, LocalDateTime date, String text, String photo, User user
                 Reports report = new Reports(update.message().chat().id(),
-                        LocalDateTime.now(), update.message().text(),null, user);
-                if (reportsRepository.save(report) != null){
+                        LocalDateTime.now(), textOrCaption, pathPhoto, user);
+                if (reportsRepository.save(report) != null) {
                     telegramBot.execute(new SendMessage(update.message().chat().id(),
                             "Уважаемый пациент " +
                                     ", ваш отчет сохранен! "));
@@ -264,9 +300,9 @@ public class TelegramUpdateHandler {
                 telegramBot.execute(new SendMessage(chatId, "Запись на сопровождение")
                         .replyMarkup(new ReplyKeyboardMarkup(new String[]{MENU4_BUTTON1}, new String[]{MENU4_BUTTON3})));
                 break;
-            case  5:
+            case 5:
                 telegramBot.execute(new SendMessage(chatId, "Дорогая мама, нам важно знать как вы с малышом себя чувствуете!")
-                        .replyMarkup(new ReplyKeyboardMarkup(new String[]{MENU5_BUTTON1},new String[]{MENU5_BUTTON2})));
+                        .replyMarkup(new ReplyKeyboardMarkup(new String[]{MENU5_BUTTON1}, new String[]{MENU5_BUTTON2})));
                 break;
         }
 
@@ -282,12 +318,20 @@ public class TelegramUpdateHandler {
         logger.info("Processing update: {}", update);
         // Process your updates here
         long chatId = update.message().chat().id();
-        if (menuNumber == -1 || update.message().text().equals("/start")) {
+        String textOrCaption = null;
+        if (update.message().text() != null) {
+            textOrCaption = update.message().text();
+        } else if (update.message().caption() != null) {
+            textOrCaption = update.message().caption();
+        } else {
+            textOrCaption = "только фото";
+        }
+        if (menuNumber == -1 || textOrCaption.equals("/start")) {
             menuNumber = 0;
             showMenu(chatId);
 
         } else if (menuNumber == 0) {
-            switch (update.message().text()) {
+            switch (textOrCaption) {
                 // выбираем файлы свойств в завивисмости от имени роддома
                 //Роддом 40
                 case MENU0_BUTTON1:
@@ -309,11 +353,7 @@ public class TelegramUpdateHandler {
                     break;
             }
         } else if (menuNumber == 1) {
-//                telegramBot.execute(new SendMessage(chatId,message).replyMarkup(new ReplyKeyboardMarkup(new String[]{MENU1_BUTTON1},
-//                        new String[]{MENU1_BUTTON2}, new String[]{MENU1_BUTTON3}, new String[]{MENU1_BUTTON4})));
-            //String text = update.message().text();
-
-            switch (update.message().text()) {
+            switch (textOrCaption) {
                 //public final String MENU1_BUTTON1 = "Узнать информацию о роддоме";
                 case MENU1_BUTTON1:
                     //telegramBot.execute(new SendMessage(chatId, "(Узнать информацию о роддоме), Открыть меню 2"));
@@ -354,7 +394,7 @@ public class TelegramUpdateHandler {
             }
         } else if (menuNumber == 2) {
 
-            switch (update.message().text()) {
+            switch (textOrCaption) {
                 //Рассказать о роддоме подробнее";
                 case MENU2_BUTTON1:
                     telegramBot.execute(new SendMessage(chatId, properties.getProperty("details.maternity.info")));
@@ -401,7 +441,7 @@ public class TelegramUpdateHandler {
             }
 
         } else if (menuNumber == 3) {
-            switch (update.message().text()) {
+            switch (textOrCaption) {
                 //"Какие документы взять?";
                 case MENU3_BUTTON1:
                     telegramBot.execute(new SendMessage(chatId, properties.getProperty("documents.info")));
@@ -486,7 +526,7 @@ public class TelegramUpdateHandler {
                     break;
             }
         } else if (menuNumber == 4) {
-            switch (update.message().text()) {
+            switch (textOrCaption) {
                 //Записаться
                 //Указать дату рождения малыша
                 case MENU4_BUTTON1:
@@ -501,7 +541,7 @@ public class TelegramUpdateHandler {
                     showMenu(chatId);
                     break;
                 default:
-                    Matcher matcher = pattern.matcher(update.message().text());
+                    Matcher matcher = pattern.matcher(textOrCaption);
                     if (matcher.matches()) {
                         String date = matcher.group(1);
                         registerToMaternitySupport(update);
@@ -522,18 +562,18 @@ public class TelegramUpdateHandler {
             }
         } else if (menuNumber == 5) {
             //Спросить пользователя о самочувствии
-            switch (update.message().text()) {
+            switch (textOrCaption) {
                 //Сообщить о самочувствии
                 case MENU5_BUTTON1:
                     telegramBot.execute(new SendMessage(chatId, "Дорогая мама, напиши, пожалуйста подробнее как вы себя чувствуете. " +
                             "Мы рады увидеть новое фото малыша, можешь прикрепить его к сообщению!"));
                     break;
-                    //Отписаться от рассылки
+                //Отписаться от рассылки
                 case MENU5_BUTTON2:
-                    unRegisterToMaternitySupport (update);
+                    unRegisterToMaternitySupport(update);
                     break;
                 default:
-                    sendInfoAboutHealth (update);
+                    sendInfoAboutHealth(update);
                     break;
             }
         }
@@ -547,16 +587,22 @@ public class TelegramUpdateHandler {
      */
     private String getMessage(Update update) {
         String message = "^-^";
-        if (update.message() != null && update.message().text() != null) {
-            message = update.message().text();
+        if (update.message() != null) {
+            if (update.message().text() != null) {
+                message = update.message().text();
+            } else if (update.message().caption() != null) {
+                message = update.message().caption();
+            } else {
+                message = "только фото";
+            }
         }
         return message;
     }
 
     //тестовый раз в минуту
-    @Scheduled(cron = "0 0/1 * * * *")
+   // @Scheduled(cron = "0 0/1 * * * *")
     //ежедневно в 12 дня
-    //@Scheduled(cron = "0 0 12 * * *")
+    @Scheduled(cron = "0 0 12 * * *")
     public void testDailyMail() {
         List<User> users = userRepository.findAll();
         if (users == null || users.size() == 0) {
@@ -566,11 +612,47 @@ public class TelegramUpdateHandler {
         for (User user : users) {
             if (user.getChildBirthday().isAfter(
                     LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES).minusDays(maxDaysCount))) {
-                long dayNumber = Duration.between(LocalDateTime.now(), user.getChildBirthday()).toDays()+1;
+                long dayNumber = Duration.between(user.getChildBirthday(), LocalDateTime.now()).toDays() + 1;
                 DailyMail mail = dailyMailRepository.findById(dayNumber).orElseThrow();
-                telegramBot.execute(new SendMessage(user.getChatId(),mail.getInfo()));
+                telegramBot.execute(new SendMessage(user.getChatId(), mail.getInfo()));
                 menuNumber = 5;
                 showMenu(user.getChatId());
+            }
+        }
+    }
+
+
+    //тестовый раз в 5 минут
+   // @Scheduled(cron = "0 0/5 * * * *")
+    //ежедневно в 12 дня
+    @Scheduled(cron = "0 5 12 * * *")
+    public void testSendingInfoFromUser() {
+        List<User> users = userRepository.findAll();
+
+        if (users == null || users.size() == 0) {
+            return;
+        }
+
+        for (User user : users) {
+            List<Reports> reportsByUser = reportsRepository.findByUser(user);
+            if (user.getChildBirthday().isAfter(
+                    LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES).minusDays(maxDaysCountWithoutReports))) {
+                continue;
+            }
+            if (reportsByUser != null && reportsByUser.size() > 0) {
+                LocalDateTime latestReportsDate = null;
+                for (Reports rep : reportsByUser) {
+                    if (latestReportsDate == null || latestReportsDate.isBefore(rep.getDate())) {
+                        latestReportsDate = rep.getDate();
+                    }
+                }
+                if (latestReportsDate.isBefore(
+                        LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES).minusDays(maxDaysCountWithoutReports))) {
+                    telegramBot.execute(new SendMessage(user.getChatId(),
+                            "Дорогая мама, мы не получали от тебя новостей несколько дней. Все ли в порядке у вас с малышом?"));
+                    menuNumber = 5;
+                    showMenu(user.getChatId());
+                }
             }
         }
     }
