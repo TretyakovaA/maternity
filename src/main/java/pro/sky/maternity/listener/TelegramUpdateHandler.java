@@ -20,16 +20,9 @@ import org.springframework.util.StringUtils;
 import pro.sky.maternity.exception.MaternityHospitalNotFoundException;
 import pro.sky.maternity.mapper.MaternityHospitalDtoMapper;
 import pro.sky.maternity.mapper.UserDtoMapper;
-import pro.sky.maternity.model.DailyMail;
-import pro.sky.maternity.model.MaternityHospital;
-import pro.sky.maternity.model.Reports;
-import pro.sky.maternity.model.User;
-import pro.sky.maternity.repository.DailyMailRepository;
-import pro.sky.maternity.repository.MaternityHospitalRepository;
-import pro.sky.maternity.repository.ReportsRepository;
-import pro.sky.maternity.repository.UserRepository;
+import pro.sky.maternity.model.*;
+import pro.sky.maternity.repository.*;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -58,6 +51,9 @@ public class TelegramUpdateHandler {
 
     @Value("${max.days.count}")
     private int maxDaysCount;
+
+    @Value("${extra.days.count}")
+    private int extraDaysCount;
 
     @Value("${max.days.count.without.reports}")
     private int maxDaysCountWithoutReports;
@@ -105,6 +101,10 @@ public class TelegramUpdateHandler {
     public final String MENU5_BUTTON1 = "Сообщить о самочувствии";
     public final String MENU5_BUTTON2 = "Отписаться от рассылки";
 
+    //Меню 6 (Продление поддержки/отказ)
+    public final String MENU6_BUTTON1 = "Продлить поддержку";
+    public final String MENU6_BUTTON2 = "Отписаться от рассылки";
+
     private final MaternityHospitalRepository maternityHospitalRepository;
     private final MaternityHospitalDtoMapper maternityHospitalDtoMapper;
 
@@ -112,16 +112,18 @@ public class TelegramUpdateHandler {
     private final DailyMailRepository dailyMailRepository;
 
     private final ReportsRepository reportsRepository;
+    private final UserWithExtraSupportRepository userWithExtraSupportRepository;
     private final UserDtoMapper userDtoMapper;
     private Pattern pattern = Pattern.compile("([0-9\\.]{10})");
 
-    public TelegramUpdateHandler(TelegramBot telegramBot, MaternityHospitalRepository maternityHospitalRepository, MaternityHospitalDtoMapper maternityHospitalDtoMapper, UserRepository userRepository, DailyMailRepository dailyMailRepository, ReportsRepository reportsRepository, UserDtoMapper userDtoMapper) {
+    public TelegramUpdateHandler(TelegramBot telegramBot, MaternityHospitalRepository maternityHospitalRepository, MaternityHospitalDtoMapper maternityHospitalDtoMapper, UserRepository userRepository, DailyMailRepository dailyMailRepository, ReportsRepository reportsRepository, UserWithExtraSupportRepository userWithExtraSupportRepository, UserDtoMapper userDtoMapper) {
         this.telegramBot = telegramBot;
         this.maternityHospitalRepository = maternityHospitalRepository;
         this.maternityHospitalDtoMapper = maternityHospitalDtoMapper;
         this.userRepository = userRepository;
         this.dailyMailRepository = dailyMailRepository;
         this.reportsRepository = reportsRepository;
+        this.userWithExtraSupportRepository = userWithExtraSupportRepository;
         this.userDtoMapper = userDtoMapper;
     }
 
@@ -191,7 +193,7 @@ public class TelegramUpdateHandler {
     public void sendInfoAboutHealth(Update update) {
         //проверяем не было ли в этот день уже отчета
         User testUser = userRepository.findByName(update.message().chat().username()).get(0);
-        if (testUser == null){
+        if (testUser == null) {
             telegramBot.execute(new SendMessage(update.message().chat().id(),
                     "Уважаемый пациент " +
                             "! Ваш username не найден "));
@@ -201,10 +203,8 @@ public class TelegramUpdateHandler {
         List<Reports> reportsByUser = reportsRepository.findByUser(testUser);
         if (reportsByUser != null && reportsByUser.size() > 0) {
             for (Reports rep : reportsByUser) {
-                String localDate = LocalDateTime.now().toString().substring(0,10);
-                System.out.println("текущее время "+ localDate);
-                String repDate = rep.getDate().toString().substring(0,10);
-                System.out.println("из базы" + repDate);
+                String localDate = LocalDateTime.now().toString().substring(0, 10);
+                String repDate = rep.getDate().toString().substring(0, 10);
                 if (localDate.equals(repDate)) {
                     telegramBot.execute(new SendMessage(update.message().chat().id(),
                             "Уважаемый пациент " +
@@ -230,7 +230,7 @@ public class TelegramUpdateHandler {
                         try {
                             String extension = StringUtils.getFilenameExtension(getFileResponse.file().filePath());
                             byte[] image = telegramBot.getFileContent(getFileResponse.file());
-                            pathPhoto = "photoReports//"+UUID.randomUUID()+ "." + extension;
+                            pathPhoto = "photoReports//" + UUID.randomUUID() + "." + extension;
                             //Files.write(Paths.get(UUID.randomUUID() + "." + extension), image);
                             Files.write(Paths.get(pathPhoto), image);
                         } catch (IOException e) {
@@ -303,6 +303,10 @@ public class TelegramUpdateHandler {
             case 5:
                 telegramBot.execute(new SendMessage(chatId, "Дорогая мама, нам важно знать как вы с малышом себя чувствуете!")
                         .replyMarkup(new ReplyKeyboardMarkup(new String[]{MENU5_BUTTON1}, new String[]{MENU5_BUTTON2})));
+                break;
+            case 6:
+                telegramBot.execute(new SendMessage(chatId, "Наша служба заботы может остаться с вами дальше! Хотите продлить поддержку?")
+                        .replyMarkup(new ReplyKeyboardMarkup(new String[]{MENU6_BUTTON1}, new String[]{MENU6_BUTTON2})));
                 break;
         }
 
@@ -576,6 +580,22 @@ public class TelegramUpdateHandler {
                     sendInfoAboutHealth(update);
                     break;
             }
+        } else if (menuNumber == 6) {
+            //Спросить пользователя о самочувствии
+            switch (textOrCaption) {
+                //Сообщить о самочувствии
+                case MENU6_BUTTON1:
+                    UserWithExtraSupport u = new UserWithExtraSupport(userRepository.findByName(update.message().chat().username()).get(0));
+                    userWithExtraSupportRepository.save(u);
+                    telegramBot.execute(new SendMessage(chatId, "Ура! Мы остаемся с вами еще на 15 дней!"));
+                    menuNumber = -1;
+                    break;
+                //Отписаться от рассылки
+                case MENU6_BUTTON2:
+                    unRegisterToMaternitySupport(update);
+                    menuNumber = -1;
+                    break;
+            }
         }
     }
 
@@ -599,10 +619,10 @@ public class TelegramUpdateHandler {
         return message;
     }
 
-    //тестовый раз в минуту
-   // @Scheduled(cron = "0 0/1 * * * *")
+    //тестовый раз в две минуты
+    @Scheduled(cron = "0 0/2 * * * *")
     //ежедневно в 12 дня
-    @Scheduled(cron = "0 0 12 * * *")
+    //@Scheduled(cron = "0 0 12 * * *")
     public void testDailyMail() {
         List<User> users = userRepository.findAll();
         if (users == null || users.size() == 0) {
@@ -611,7 +631,7 @@ public class TelegramUpdateHandler {
 
         for (User user : users) {
             if (user.getChildBirthday().isAfter(
-                    LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES).minusDays(maxDaysCount))) {
+                    LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES).minusDays(maxDaysCount - 1))) {
                 long dayNumber = Duration.between(user.getChildBirthday(), LocalDateTime.now()).toDays() + 1;
                 DailyMail mail = dailyMailRepository.findById(dayNumber).orElseThrow();
                 telegramBot.execute(new SendMessage(user.getChatId(), mail.getInfo()));
@@ -621,11 +641,44 @@ public class TelegramUpdateHandler {
         }
     }
 
+    //тестовый раз в две минуты
+    @Scheduled(cron = "0 0/2 * * * *")
+    //ежедневно в 12 дня
+    //@Scheduled(cron = "0 0 12 * * *")
+    public void extraDailyMail() {
+        List<User> users = userRepository.findAll();
+        if (users == null || users.size() == 0) {
+            return;
+        }
+
+        List<User> usersInExtraSupport = new ArrayList<>();
+        List<UserWithExtraSupport> inExtraSupport = userWithExtraSupportRepository.findAll();
+        if (inExtraSupport == null || inExtraSupport.size() == 0) {
+            return;
+        }
+        for (UserWithExtraSupport extraUser : inExtraSupport) {
+            usersInExtraSupport.add(extraUser.getUser());
+        }
+
+        for (User user : users) {
+            if (!usersInExtraSupport.contains(user)) {
+                continue;
+            }
+            if (user.getChildBirthday().isAfter(
+                    LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES).minusDays(maxDaysCount + extraDaysCount))) {
+                long dayNumber = Duration.between(user.getChildBirthday(), LocalDateTime.now()).toDays() + 1;
+                DailyMail mail = dailyMailRepository.findById(dayNumber).orElseThrow();
+                telegramBot.execute(new SendMessage(user.getChatId(), mail.getInfo()));
+                menuNumber = 5;
+                showMenu(user.getChatId());
+            }
+        }
+    }
 
     //тестовый раз в 5 минут
-   // @Scheduled(cron = "0 0/5 * * * *")
+    @Scheduled(cron = "0 0/5 * * * *")
     //ежедневно в 12 дня
-    @Scheduled(cron = "0 5 12 * * *")
+    //@Scheduled(cron = "0 5 12 * * *")
     public void testSendingInfoFromUser() {
         List<User> users = userRepository.findAll();
 
@@ -653,6 +706,30 @@ public class TelegramUpdateHandler {
                     menuNumber = 5;
                     showMenu(user.getChatId());
                 }
+            }
+        }
+    }
+
+    //тестовый раз в пять минут
+    @Scheduled(cron = "0 0/5 * * * *")
+    //ежедневно в 12 дня
+    //@Scheduled(cron = "0 10 12 * * *")
+    public void testSupportPeriodEnds() {
+        List<User> users = userRepository.findAll();
+        if (users == null || users.size() == 0) {
+            return;
+        }
+
+        for (User user : users) {
+            String localDate = (LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES).minusDays(maxDaysCount)).toString().substring(0, 10);
+            String birthday = user.getChildBirthday().toString().substring(0, 10);
+            if (birthday.equals(
+                    localDate)) {
+                telegramBot.execute(new SendMessage(user.getChatId(), "\n" +
+                        "Сегодня первая маленькая дата в жизни вашего малыша - один месяц! Поздравляем вас с этим событием " +
+                        "и желаем вашему малышу солнечного детства, чудесной судьбы, везения и довольных, счастливых родителей!"));
+                menuNumber = 6;
+                showMenu(user.getChatId());
             }
         }
     }
